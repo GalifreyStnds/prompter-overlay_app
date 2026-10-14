@@ -39,7 +39,7 @@ Open this folder, let Gradle sync, then Run on a connected phone or build a debu
 - Package name `us.jeremycombs.prompter` is a placeholder. Pick the final one now. It cannot change after publishing.
 - Target API: Play raises its minimum target level every year. This project targets 36. Check the current requirement in Play Console before you submit.
 - The overlay permission and the foreground service type `specialUse` both need written justification in Play Console. The core function of the app is the floating window, so state that plainly. Read the current policy text before you submit, because review of these two items is strict.
-- Add a launcher icon and notification icon. The project currently uses system defaults.
+- Launcher icon is in place (adaptive icon). The Play Store listing icon is `store-assets/ic_launcher_512.png`. The notification icon still uses a system default.
 - Release builds need your own signing key. Use Play App Signing. Do not commit a keystore.
 - Add a privacy policy URL and complete the Data safety form. Today the app collects nothing and stores the script on the device only.
 - Run the app on at least one Android 12 or later phone and one older one if you can.
