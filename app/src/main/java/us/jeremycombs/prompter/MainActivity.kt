@@ -4,6 +4,8 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.graphics.Outline
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -13,6 +15,7 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewOutlineProvider
 import android.view.WindowInsets
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
@@ -20,6 +23,7 @@ import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
@@ -96,7 +100,10 @@ class MainActivity : Activity() {
 
     @Suppress("DEPRECATION")
     private fun buildUi(): View {
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Brand.bg(this@MainActivity))
+        }
         root.setOnApplyWindowInsetsListener { v, insets ->
             val left: Int
             val top: Int
@@ -126,18 +133,14 @@ class MainActivity : Activity() {
         scroller.addView(column)
         root.addView(scroller, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
-        column.addView(TextView(this).apply {
-            text = "Prompter"
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 24f)
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
-        })
-        column.addView(TextView(this).apply {
-            text = "Start the overlay, open your camera app, then press Play on the floating window. " +
-                "Drag the top bar to move it. Drag the bottom-right corner to resize it."
-            setPadding(0, dp(8), 0, dp(16))
-        })
+        column.addView(buildHeader())
+        column.addView(bodyText(
+            "Start the overlay, open your camera app, then press Play on the floating window. " +
+                "Drag the top bar to move it. Drag the bottom-right corner to resize it.",
+            muted = true
+        ).apply { setPadding(0, dp(12), 0, dp(16)) })
 
-        val scriptLabel = TextView(this).apply { text = "Script" }
+        val scriptLabel = fieldLabel("Script")
         scriptField = EditText(this).apply {
             id = View.generateViewId()
             setText(prefs.script)
@@ -147,6 +150,10 @@ class MainActivity : Activity() {
             inputType = InputType.TYPE_CLASS_TEXT or
                 InputType.TYPE_TEXT_FLAG_MULTI_LINE or
                 InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+            setTextColor(Brand.text(this@MainActivity))
+            setHintTextColor(Brand.muted(this@MainActivity))
+            background = Brand.rounded(Brand.panel(this@MainActivity), dp(FIELD_RADIUS_DP).toFloat())
+            setPadding(dp(FIELD_PADDING_DP), dp(FIELD_PADDING_DP), dp(FIELD_PADDING_DP), dp(FIELD_PADDING_DP))
         }
         scriptLabel.labelFor = scriptField.id
         column.addView(scriptLabel)
@@ -172,26 +179,24 @@ class MainActivity : Activity() {
 
         column.addView(CheckBox(this).apply {
             text = "Mirror text (for a glass teleprompter rig)"
+            setTextColor(Brand.text(this@MainActivity))
+            buttonTintList = ColorStateList.valueOf(Brand.accent(this@MainActivity))
             isChecked = prefs.mirror
             setOnCheckedChangeListener { _, checked -> prefs.mirror = checked }
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = dp(12)
         })
 
-        permissionStatus = TextView(this).apply { setPadding(0, dp(16), 0, dp(8)) }
+        permissionStatus = bodyText("", muted = true).apply { setPadding(0, dp(16), 0, dp(8)) }
         column.addView(permissionStatus)
 
-        column.addView(Button(this).apply {
-            text = "Start overlay"
-            setOnClickListener { startOverlay() }
-        })
-        column.addView(Button(this).apply {
-            text = "Stop overlay"
-            setOnClickListener { stopOverlay() }
-        })
-        column.addView(TextView(this).apply {
-            text = "Changes made here apply the next time you start the overlay. " +
-                "Speed and text size can also be changed live on the overlay."
-            setPadding(0, dp(12), 0, 0)
-        })
+        column.addView(actionButton("Start overlay", primary = true) { startOverlay() })
+        column.addView(actionButton("Stop overlay", primary = false) { stopOverlay() })
+        column.addView(bodyText(
+            "Changes made here apply the next time you start the overlay. " +
+                "Speed and text size can also be changed live on the overlay.",
+            muted = true
+        ).apply { setPadding(0, dp(12), 0, 0) })
 
         // Future ad banner goes in this container. Hidden until an ad SDK is added.
         adContainer = FrameLayout(this).apply { visibility = View.GONE }
@@ -200,6 +205,66 @@ class MainActivity : Activity() {
         return root
     }
 
+    private fun buildHeader(): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val logo = ImageView(this).apply {
+            setImageResource(R.drawable.ic_launcher_foreground)
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            // Decorative. The title next to it carries the meaning.
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            clipToOutline = true
+            outlineProvider = object : ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: Outline) {
+                    outline.setRoundRect(0, 0, view.width, view.height, dp(LOGO_RADIUS_DP).toFloat())
+                }
+            }
+        }
+        row.addView(logo, LinearLayout.LayoutParams(dp(LOGO_SIZE_DP), dp(LOGO_SIZE_DP)))
+
+        val titles = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), 0, 0, 0)
+        }
+        titles.addView(TextView(this).apply {
+            text = "Prompter"
+            setTextColor(Brand.text(this@MainActivity))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, TITLE_SP)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        })
+        titles.addView(TextView(this).apply {
+            text = "Floating teleprompter"
+            setTextColor(Brand.accent(this@MainActivity))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, SUBTITLE_SP)
+        })
+        row.addView(titles)
+        return row
+    }
+
+    private fun bodyText(value: String, muted: Boolean): TextView = TextView(this).apply {
+        text = value
+        setTextColor(if (muted) Brand.muted(this@MainActivity) else Brand.text(this@MainActivity))
+    }
+
+    private fun fieldLabel(value: String): TextView = TextView(this).apply {
+        text = value
+        setTextColor(Brand.text(this@MainActivity))
+        setTypeface(typeface, android.graphics.Typeface.BOLD)
+        setPadding(0, dp(12), 0, dp(4))
+    }
+
+    private fun actionButton(label: String, primary: Boolean, onClick: () -> Unit): Button =
+        Button(this).apply {
+            text = label
+            minHeight = dp(MIN_TOUCH_DP)
+            Brand.styleButton(this@MainActivity, this, primary, dp(BUTTON_RADIUS_DP).toFloat(), dp(FOCUS_RING_DP))
+            setOnClickListener { onClick() }
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                .apply { topMargin = dp(8) }
+        }
+
     private fun spinnerRow(
         parent: LinearLayout,
         label: String,
@@ -207,14 +272,13 @@ class MainActivity : Activity() {
         selected: Int,
         onPick: (Int) -> Unit
     ) {
-        val labelView = TextView(this).apply {
-            text = label
-            setPadding(0, dp(12), 0, 0)
-        }
+        val labelView = fieldLabel(label)
         val spinner = Spinner(this).apply {
             id = View.generateViewId()
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, items)
             setSelection(selected)
+            backgroundTintList = ColorStateList.valueOf(Brand.accent(this@MainActivity))
+            minimumHeight = dp(MIN_TOUCH_DP)
             onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                 override fun onItemSelected(p: AdapterView<*>?, v: View?, position: Int, id: Long) = onPick(position)
                 override fun onNothingSelected(p: AdapterView<*>?) = Unit
@@ -234,15 +298,13 @@ class MainActivity : Activity() {
         format: (Int) -> String,
         onChange: (Int) -> Unit
     ) {
-        val labelView = TextView(this).apply {
-            text = "$label: ${format(value)}"
-            setPadding(0, dp(12), 0, 0)
-        }
+        val labelView = fieldLabel("$label: ${format(value)}")
         val seek = SeekBar(this).apply {
             id = View.generateViewId()
             this.min = min
             this.max = max
             progress = value
+            Brand.styleSeekBar(this@MainActivity, this)
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
                     labelView.text = "$label: ${format(progress)}"
@@ -264,5 +326,14 @@ class MainActivity : Activity() {
         const val REQUEST_NOTIFICATIONS = 1
         const val PAGE_PADDING_DP = 16
         const val SCRIPT_MIN_LINES = 8
+        const val FIELD_PADDING_DP = 12
+        const val FIELD_RADIUS_DP = 10
+        const val BUTTON_RADIUS_DP = 10
+        const val FOCUS_RING_DP = 2
+        const val MIN_TOUCH_DP = 48
+        const val LOGO_SIZE_DP = 64
+        const val LOGO_RADIUS_DP = 16
+        const val TITLE_SP = 26f
+        const val SUBTITLE_SP = 14f
     }
 }

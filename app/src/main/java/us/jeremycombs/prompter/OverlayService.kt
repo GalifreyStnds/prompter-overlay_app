@@ -8,7 +8,6 @@ import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.content.res.Configuration
-import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -132,7 +131,8 @@ class OverlayService : Service() {
             Icon.createWithResource(this, android.R.drawable.ic_menu_close_clear_cancel), "Stop", stop
         ).build()
         return Notification.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setSmallIcon(R.drawable.ic_stat_prompter)
+            .setColor(Brand.accent(this))
             .setContentTitle("Prompter is running")
             .setContentText("Tap to open settings")
             .setContentIntent(open)
@@ -210,7 +210,7 @@ class OverlayService : Service() {
 
         background = GradientDrawable().apply {
             cornerRadius = dp(CORNER_DP).toFloat()
-            setColor(Color.BLACK)
+            setColor(Brand.bg(this@OverlayService))
         }
         val container = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
@@ -220,16 +220,16 @@ class OverlayService : Service() {
 
         status = TextView(ctx).apply {
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
+            setTextColor(Brand.text(this@OverlayService))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-            setBackgroundColor(GRIP_COLOR)
+            setBackgroundColor(Brand.panel(this@OverlayService))
             contentDescription = "Drag to move the prompter"
             setOnTouchListener(dragListener())
         }
         container.addView(status, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(GRIP_HEIGHT_DP)))
 
         val controls = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
-        playButton = controlButton(ctx, "Play", "Play or pause scrolling") { togglePlay() }
+        playButton = controlButton(ctx, "Play", "Play or pause scrolling", primary = true) { togglePlay() }
         controls.addView(playButton, controlParams())
         controls.addView(controlButton(ctx, "Top", "Jump back to the start of the script") { jumpToTop() }, controlParams())
         controls.addView(controlButton(ctx, "Slow", "Scroll slower") { changeSpeed(-Limits.SPEED_STEP) }, controlParams())
@@ -252,14 +252,16 @@ class OverlayService : Service() {
         scroll.addView(body, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         area.addView(scroll, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
-        val marker = View(ctx).apply { setBackgroundColor(MARKER_COLOR) }
+        val marker = View(ctx).apply {
+            setBackgroundColor(Brand.withAlpha(Brand.accent(this@OverlayService), MARKER_ALPHA))
+        }
         area.addView(marker, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(MARKER_HEIGHT_DP)))
 
         val handle = TextView(ctx).apply {
             text = "◢"
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            setBackgroundColor(HANDLE_COLOR)
+            setTextColor(Brand.accent(this@OverlayService))
+            setBackgroundColor(Brand.withAlpha(Brand.bg(this@OverlayService), HANDLE_ALPHA))
             contentDescription = "Drag to resize the prompter"
             setOnTouchListener(resizeListener())
         }
@@ -288,19 +290,27 @@ class OverlayService : Service() {
         return container
     }
 
-    private fun controlButton(ctx: ContextThemeWrapper, label: String, description: String, onClick: () -> Unit): Button =
+    private fun controlButton(
+        ctx: ContextThemeWrapper,
+        label: String,
+        description: String,
+        primary: Boolean = false,
+        onClick: () -> Unit
+    ): Button =
         Button(ctx).apply {
             text = label
             contentDescription = description
-            isAllCaps = false
             minWidth = 0
             minimumWidth = 0
             setPadding(0, 0, 0, 0)
+            Brand.styleButton(this@OverlayService, this, primary, dp(BUTTON_RADIUS_DP).toFloat(), dp(FOCUS_RING_DP))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             setOnClickListener { onClick() }
         }
 
-    private fun controlParams() = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
+    private fun controlParams() = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f).apply {
+        setMargins(dp(CONTROL_MARGIN_DP), dp(CONTROL_MARGIN_DP), dp(CONTROL_MARGIN_DP), dp(CONTROL_MARGIN_DP))
+    }
 
     private fun applyStyle() {
         body.setTextSize(TypedValue.COMPLEX_UNIT_SP, prefs.textSizeSp.toFloat())
@@ -308,7 +318,7 @@ class OverlayService : Service() {
         body.typeface = Typeface.create(Options.fonts[prefs.fontIndex].family, Typeface.BOLD)
         body.setLineSpacing(0f, LINE_SPACING)
         scroll.scaleX = if (prefs.mirror) -1f else 1f
-        background.setColor(Color.argb(prefs.opacityPercent * 255 / 100, 0, 0, 0))
+        background.setColor(Brand.withAlpha(Brand.bg(this), prefs.opacityPercent * ALPHA_MAX / PERCENT_MAX))
         updateStatus()
     }
 
@@ -488,9 +498,13 @@ class OverlayService : Service() {
         const val MARKER_POSITION_RATIO = 0.3f
         const val LINE_SPACING = 1.25f
 
-        const val GRIP_COLOR = 0xFF2A2A31.toInt()
-        const val MARKER_COLOR = 0x99FFD54A.toInt()
-        const val HANDLE_COLOR = 0x66000000
+        const val BUTTON_RADIUS_DP = 6
+        const val FOCUS_RING_DP = 2
+        const val CONTROL_MARGIN_DP = 2
+        const val MARKER_ALPHA = 0xCC
+        const val HANDLE_ALPHA = 0xAA
+        const val ALPHA_MAX = 255
+        const val PERCENT_MAX = 100
 
         const val NANOS_PER_SECOND = 1_000_000_000f
         const val MS_PER_SECOND = 1000L

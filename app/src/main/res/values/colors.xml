@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand palette. Matches the launcher icon. Single source of truth for the app and overlay. -->
+    <color name="brand_bg">#0B0B0C</color>
+    <color name="brand_panel">#2A2A31</color>
+    <color name="brand_text">#F5F5F5</color>
+    <color name="brand_muted">#B4B4BB</color>
+    <color name="brand_accent">#FFD54A</color>
+    <color name="brand_on_accent">#0B0B0C</color>
+</resources>
