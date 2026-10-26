@@ -3,6 +3,8 @@
 Floating teleprompter window that sits over any app, including your camera app.
 Proof of concept for personal use, structured so it can be taken to Google Play later.
 
+**Platform:** Built for Android only. Native Kotlin app. Requires Android 8.0 (API 26) or later. Not available for iOS or desktop.
+
 ## What it does
 
 - Script editor with one saved script
@@ -54,3 +56,7 @@ Open this folder, let Gradle sync, then Run on a connected phone or build a debu
 ## Tests
 
 `./gradlew testDebugUnitTest` runs the scroll and window-clamp math tests. The service and activity are not covered by automated tests yet. Test those by hand on a device.
+
+## License
+
+MIT. See [LICENSE](LICENSE). This is an Android app, so the license covers the Kotlin source and Android resources in this repo.
