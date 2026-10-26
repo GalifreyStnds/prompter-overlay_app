@@ -6,7 +6,7 @@ Native Kotlin. Android 8.0 (API 26) or later. Android only. No third-party runti
 
 I built it for my own use and I use it on my phone.
 
-<!-- add screenshot of the overlay on top of the camera app -->
+<img src="docs/screenshots/overlay-on-camera.jpg" alt="Prompter script window floating over a phone camera app, with Play, Top, Slow, Fast, A-, A+ and Close controls" width="360">
 
 ## What it does
 
