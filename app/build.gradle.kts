@@ -31,6 +31,18 @@ android {
     }
 }
 
+// Ship the built APK under a real product name instead of the default
+// app-debug.apk / app-release.apk output names.
+androidComponents {
+    onVariants { variant ->
+        variant.outputs.forEach { output ->
+            (output as? com.android.build.api.variant.impl.VariantOutputImpl)
+                ?.outputFileName
+                ?.set("App-Teleprompter-Overlay.apk")
+        }
+    }
+}
+
 dependencies {
     testImplementation("junit:junit:4.13.2")
 }
