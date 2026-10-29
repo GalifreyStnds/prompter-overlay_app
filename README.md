@@ -27,7 +27,7 @@ Voice-paced scrolling, cloud sync, Bluetooth remote, recording, PDF or Word impo
 
 1. Fork or clone this repo.
 2. Open the Actions tab and run "Build APK". It also runs on every push to `main`.
-3. Download the `prompter-debug-apk` artifact, unzip it, and copy `app-debug.apk` to your phone.
+3. Download the `prompter-debug-apk` artifact, unzip it, and copy `App-Teleprompter-Overlay.apk` to your phone.
 4. Install it. Android will ask you to allow installs from your file manager or browser. That is expected for a debug build.
 
 **Option B: Android Studio**
