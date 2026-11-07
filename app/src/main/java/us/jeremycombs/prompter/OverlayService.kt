@@ -49,7 +49,7 @@ class OverlayService : Service() {
     private lateinit var background: GradientDrawable
     private lateinit var scroll: ScrollView
     private lateinit var body: TextView
-    private lateinit var status: TextView
+    private lateinit var countdownLabel: TextView
     private lateinit var playButton: Button
 
     private val handler = Handler(Looper.getMainLooper())
@@ -227,25 +227,39 @@ class OverlayService : Service() {
             clipToOutline = true
         }
 
-        status = TextView(ctx).apply {
-            gravity = Gravity.CENTER
-            setTextColor(Brand.text(this@OverlayService))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+        val grip = FrameLayout(ctx).apply {
             setBackgroundColor(Brand.panel(this@OverlayService))
             contentDescription = "Drag to move the prompter"
             setOnTouchListener(dragListener())
         }
-        container.addView(status, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(GRIP_HEIGHT_DP)))
+        val gripMark = View(ctx).apply {
+            background = Brand.rounded(Brand.muted(this@OverlayService), dp(GRIP_MARK_HEIGHT_DP).toFloat())
+        }
+        grip.addView(gripMark, FrameLayout.LayoutParams(dp(GRIP_MARK_WIDTH_DP), dp(GRIP_MARK_HEIGHT_DP), Gravity.CENTER))
+        countdownLabel = TextView(ctx).apply {
+            gravity = Gravity.CENTER
+            setTextColor(Brand.text(this@OverlayService))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            setBackgroundColor(Brand.panel(this@OverlayService))
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+            visibility = View.INVISIBLE
+        }
+        grip.addView(countdownLabel, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        container.addView(grip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(GRIP_HEIGHT_DP)))
 
         val controls = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
-        playButton = controlButton(ctx, "Play", "Play or pause scrolling", primary = true) { togglePlay() }
-        controls.addView(playButton, controlParams())
+        val speedControls = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
+        val moreControls = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
+        playButton = controlButton(ctx, "Play", "Play scrolling", primary = true) { togglePlay() }
+        controls.addView(playButton, controlParams(PLAY_WIDTH_DP))
         controls.addView(controlButton(ctx, "Top", "Jump back to the start of the script") { jumpToTop() }, controlParams())
-        controls.addView(controlButton(ctx, "Slow", "Scroll slower") { changeSpeed(-Limits.SPEED_STEP) }, controlParams())
-        controls.addView(controlButton(ctx, "Fast", "Scroll faster") { changeSpeed(Limits.SPEED_STEP) }, controlParams())
-        controls.addView(controlButton(ctx, "A-", "Smaller text") { changeSize(-Limits.SIZE_STEP) }, controlParams())
-        controls.addView(controlButton(ctx, "A+", "Larger text") { changeSize(Limits.SIZE_STEP) }, controlParams())
-        controls.addView(controlButton(ctx, "X", "Close the prompter") { stopSelf() }, controlParams())
+        controls.addView(controlButton(ctx, "Speed", "Scroll speed controls") { toggleMenu(speedControls, moreControls) }, controlParams())
+        controls.addView(controlButton(ctx, "More", "Text size and close controls") { toggleMenu(moreControls, speedControls) }, controlParams())
+        speedControls.addView(controlButton(ctx, "Slower", "Scroll slower") { changeSpeed(-Limits.SPEED_STEP) }, controlParams())
+        speedControls.addView(controlButton(ctx, "Faster", "Scroll faster") { changeSpeed(Limits.SPEED_STEP) }, controlParams())
+        moreControls.addView(controlButton(ctx, "A-", "Smaller text") { changeSize(-Limits.SIZE_STEP) }, controlParams())
+        moreControls.addView(controlButton(ctx, "A+", "Larger text") { changeSize(Limits.SIZE_STEP) }, controlParams())
+        moreControls.addView(controlButton(ctx, "Close", "Close the prompter") { stopSelf() }, controlParams())
         container.addView(controls, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(CONTROL_HEIGHT_DP)))
 
         val area = FrameLayout(ctx)
@@ -261,8 +275,13 @@ class OverlayService : Service() {
         scroll.addView(body, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         area.addView(scroll, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
-        val marker = View(ctx).apply {
-            setBackgroundColor(Brand.withAlpha(Brand.accent(this@OverlayService), MARKER_ALPHA))
+        val marker = FrameLayout(ctx).apply {
+            for (edge in listOf(Gravity.LEFT, Gravity.RIGHT)) {
+                val tick = View(ctx).apply {
+                    setBackgroundColor(Brand.withAlpha(Brand.accent(this@OverlayService), MARKER_ALPHA))
+                }
+                addView(tick, FrameLayout.LayoutParams(dp(MARKER_WIDTH_DP), dp(MARKER_HEIGHT_DP), edge))
+            }
         }
         area.addView(marker, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(MARKER_HEIGHT_DP)))
 
@@ -278,6 +297,12 @@ class OverlayService : Service() {
             handle,
             FrameLayout.LayoutParams(dp(HANDLE_SIZE_DP), dp(HANDLE_SIZE_DP), Gravity.BOTTOM or Gravity.END)
         )
+        // Layer menus over the script so opening one preserves the window and scroll viewport.
+        for (menu in listOf(speedControls, moreControls)) {
+            menu.setBackgroundColor(Brand.bg(this))
+            menu.visibility = View.GONE
+            area.addView(menu, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(CONTROL_HEIGHT_DP)))
+        }
 
         area.addOnLayoutChangeListener { _, _, top, _, bottom, _, _, _, _ ->
             val h = bottom - top
@@ -313,12 +338,17 @@ class OverlayService : Service() {
             minimumWidth = 0
             setPadding(0, 0, 0, 0)
             Brand.styleButton(this@OverlayService, this, primary, dp(BUTTON_RADIUS_DP).toFloat(), dp(FOCUS_RING_DP))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             setOnClickListener { onClick() }
         }
 
-    private fun controlParams() = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f).apply {
-        setMargins(dp(CONTROL_MARGIN_DP), dp(CONTROL_MARGIN_DP), dp(CONTROL_MARGIN_DP), dp(CONTROL_MARGIN_DP))
+    private fun controlParams(widthDp: Int = CONTROL_WIDTH_DP) =
+        LinearLayout.LayoutParams(dp(widthDp), ViewGroup.LayoutParams.MATCH_PARENT, 1f).apply {
+            setMargins(dp(CONTROL_MARGIN_DP), 0, dp(CONTROL_MARGIN_DP), 0)
+        }
+
+    private fun toggleMenu(menu: View, other: View) {
+        menu.visibility = if (menu.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        other.visibility = View.GONE
     }
 
     private fun applyStyle() {
@@ -328,11 +358,6 @@ class OverlayService : Service() {
         body.setLineSpacing(0f, LINE_SPACING)
         scroll.scaleX = if (prefs.mirror) -1f else 1f
         background.setColor(Brand.withAlpha(Brand.bg(this), prefs.opacityPercent * ALPHA_MAX / PERCENT_MAX))
-        updateStatus()
-    }
-
-    private fun updateStatus() {
-        status.text = "Drag to move   Speed ${prefs.speedDp}   Size ${prefs.textSizeSp}"
     }
 
     // ---------- touch handling ----------
@@ -403,13 +428,11 @@ class OverlayService : Service() {
 
     private fun changeSpeed(delta: Int) {
         prefs.speedDp = prefs.speedDp + delta
-        updateStatus()
     }
 
     private fun changeSize(delta: Int) {
         prefs.textSizeSp = prefs.textSizeSp + delta
         body.setTextSize(TypedValue.COMPLEX_UNIT_SP, prefs.textSizeSp.toFloat())
-        updateStatus()
     }
 
     private fun jumpToTop() {
@@ -451,6 +474,7 @@ class OverlayService : Service() {
         }
         counting = true
         playButton.text = "Stop"
+        playButton.contentDescription = "Cancel countdown"
         var remaining = seconds
         val tick = object : Runnable {
             override fun run() {
@@ -460,7 +484,8 @@ class OverlayService : Service() {
                     beginPlayback()
                     return
                 }
-                status.text = "Starting in $remaining"
+                countdownLabel.text = "Starting in $remaining"
+                countdownLabel.visibility = View.VISIBLE
                 remaining -= 1
                 handler.postDelayed(this, MS_PER_SECOND)
             }
@@ -474,7 +499,8 @@ class OverlayService : Service() {
         lastFrameNanos = 0L
         playing = true
         playButton.text = "Pause"
-        updateStatus()
+        playButton.contentDescription = "Pause scrolling"
+        countdownLabel.visibility = View.INVISIBLE
         Choreographer.getInstance().postFrameCallback(frameCallback)
     }
 
@@ -484,7 +510,8 @@ class OverlayService : Service() {
         handler.removeCallbacksAndMessages(null)
         Choreographer.getInstance().removeFrameCallback(frameCallback)
         playButton.text = "Play"
-        updateStatus()
+        playButton.contentDescription = "Play scrolling"
+        countdownLabel.visibility = View.INVISIBLE
     }
 
     private companion object {
@@ -495,21 +522,26 @@ class OverlayService : Service() {
 
         const val DEFAULT_WIDTH_RATIO = 0.92f
         const val DEFAULT_HEIGHT_RATIO = 0.4f
-        const val DEFAULT_TOP_DP = 48
+        const val DEFAULT_TOP_DP = 96
         const val MIN_WIDTH_DP = 220
         const val MIN_HEIGHT_DP = 160
         const val CORNER_DP = 12
-        const val GRIP_HEIGHT_DP = 32
+        const val GRIP_HEIGHT_DP = 24
+        const val GRIP_MARK_WIDTH_DP = 40
+        const val GRIP_MARK_HEIGHT_DP = 4
+        const val PLAY_WIDTH_DP = 64
+        const val CONTROL_WIDTH_DP = 48
         const val CONTROL_HEIGHT_DP = 48
-        const val HANDLE_SIZE_DP = 44
+        const val HANDLE_SIZE_DP = 48
         const val TEXT_PADDING_DP = 16
+        const val MARKER_WIDTH_DP = 8
         const val MARKER_HEIGHT_DP = 2
         const val MARKER_POSITION_RATIO = 0.3f
         const val LINE_SPACING = 1.25f
 
         const val BUTTON_RADIUS_DP = 6
         const val FOCUS_RING_DP = 2
-        const val CONTROL_MARGIN_DP = 2
+        const val CONTROL_MARGIN_DP = 1
         const val MARKER_ALPHA = 0xCC
         const val HANDLE_ALPHA = 0xAA
         const val ALPHA_MAX = 255
