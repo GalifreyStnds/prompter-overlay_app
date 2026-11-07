@@ -16,7 +16,6 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
-import android.view.WindowInsets
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -40,6 +39,7 @@ class MainActivity : Activity() {
 
     private lateinit var prefs: Prefs
     private lateinit var scriptField: EditText
+    private lateinit var loadedScript: String
     private lateinit var permissionStatus: TextView
     private lateinit var adContainer: FrameLayout
     private var askedForNotifications = false
@@ -47,23 +47,44 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
+        loadedScript = prefs.script
         setContentView(buildUi())
     }
 
     override fun onResume() {
         super.onResume()
+        refreshScript()
         refreshPermissionStatus()
     }
 
     override fun onPause() {
-        prefs.script = scriptField.text.toString()
+        saveScript()
         super.onPause()
+    }
+
+    private fun refreshScript() {
+        val saved = prefs.script
+        if (saved != loadedScript) {
+            loadedScript = saved
+            scriptField.setText(saved)
+        }
+    }
+
+    private fun saveScript() {
+        // A share may have replaced the saved script while this editor was in the background.
+        if (prefs.script != loadedScript) return
+        val edited = scriptField.text.toString()
+        if (edited != loadedScript) {
+            prefs.script = edited
+            loadedScript = prefs.script
+        }
     }
 
     // ---------- actions ----------
 
     private fun startOverlay() {
-        prefs.script = scriptField.text.toString()
+        saveScript()
+        refreshScript()
         if (prefs.script.isBlank()) {
             Toast.makeText(this, "Add a script first.", Toast.LENGTH_SHORT).show()
             scriptField.requestFocus()
@@ -98,32 +119,12 @@ class MainActivity : Activity() {
 
     // ---------- UI ----------
 
-    @Suppress("DEPRECATION")
     private fun buildUi(): View {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Brand.bg(this@MainActivity))
         }
-        root.setOnApplyWindowInsetsListener { v, insets ->
-            val left: Int
-            val top: Int
-            val right: Int
-            val bottom: Int
-            if (Build.VERSION.SDK_INT >= 30) {
-                val bars = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
-                left = bars.left
-                top = bars.top
-                right = bars.right
-                bottom = bars.bottom
-            } else {
-                left = insets.systemWindowInsetLeft
-                top = insets.systemWindowInsetTop
-                right = insets.systemWindowInsetRight
-                bottom = insets.systemWindowInsetBottom
-            }
-            v.setPadding(left, top, right, bottom)
-            insets
-        }
+        Brand.applyPageInsets(root)
 
         val scroller = ScrollView(this)
         val column = LinearLayout(this).apply {
@@ -143,7 +144,9 @@ class MainActivity : Activity() {
         val scriptLabel = fieldLabel("Script")
         scriptField = EditText(this).apply {
             id = View.generateViewId()
-            setText(prefs.script)
+            // The saved script is authoritative after a share, including after process recreation.
+            isSaveEnabled = false
+            setText(loadedScript)
             hint = "Paste or type your script"
             gravity = Gravity.TOP or Gravity.START
             minLines = SCRIPT_MIN_LINES
