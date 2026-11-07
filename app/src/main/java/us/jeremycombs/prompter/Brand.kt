@@ -7,7 +7,10 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.graphics.drawable.StateListDrawable
+import android.os.Build
 import android.util.TypedValue
+import android.view.View
+import android.view.WindowInsets
 import android.widget.Button
 import android.widget.SeekBar
 
@@ -26,6 +29,22 @@ object Brand {
     fun muted(ctx: Context): Int = ctx.getColor(R.color.brand_muted)
     fun accent(ctx: Context): Int = ctx.getColor(R.color.brand_accent)
     fun onAccent(ctx: Context): Int = ctx.getColor(R.color.brand_on_accent)
+
+    @Suppress("DEPRECATION")
+    fun applyPageInsets(view: View) {
+        view.setOnApplyWindowInsetsListener { page, insets ->
+            if (Build.VERSION.SDK_INT >= 30) {
+                val bars = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+                page.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            } else {
+                page.setPadding(
+                    insets.systemWindowInsetLeft, insets.systemWindowInsetTop,
+                    insets.systemWindowInsetRight, insets.systemWindowInsetBottom
+                )
+            }
+            insets
+        }
+    }
 
     fun withAlpha(color: Int, alpha: Int): Int =
         Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color))
