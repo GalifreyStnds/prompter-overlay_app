@@ -90,6 +90,15 @@ class OverlayService : Service() {
                 return START_NOT_STICKY
             }
             showOverlay()
+        } else {
+            val script = prefs.script
+            if (!script.contentEquals(body.text)) {
+                pausePlayback()
+                body.text = script
+                jumpToTop()
+                // Cancel any fling that was still scrolling the previous script.
+                scroll.fling(0)
+            }
         }
         return START_NOT_STICKY
     }
