@@ -31,4 +31,5 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: prompter-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/App-Teleprompter-Overlay.apk
+          if-no-files-found: error
