@@ -6,13 +6,13 @@ Native Kotlin. Android 8.0 (API 26) or later. Android only. No third-party runti
 
 I built it for my own use and I use it on my phone.
 
-<img src="docs/screenshots/overlay-on-camera.jpg" alt="Prompter script window floating over a phone camera app, with Play, Top, Slow, Fast, A-, A+ and Close controls" width="360">
+<img src="docs/screenshots/overlay-on-camera.jpg" alt="Prompter script window floating over a phone camera app" width="360">
 
 ## What it does
 
 - Script editor with one saved script
 - Floating window you drag by the top bar and resize from the bottom-right corner
-- Controls on the window: Play, Top, Slow, Fast, A-, A+, Close
+- Play and Top stay visible. Speed opens Slower and Faster, and More opens text size and Close.
 - Touch-scroll by hand at any time. Playback resumes from where you leave it.
 - Settings for font, text color, text size, scroll speed, window opacity, countdown, and mirrored text
 - Screen stays on while the window is showing
