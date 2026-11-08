@@ -2,26 +2,31 @@ package us.jeremycombs.prompter
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Outline
+import android.graphics.Rect
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.text.InputType
+import android.text.InputFilter
+import android.text.SpannableStringBuilder
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
+import android.view.inputmethod.InputMethodManager
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
-import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -33,28 +38,25 @@ import kotlin.math.roundToInt
 
 /**
  * Script editor and settings. Starts and stops the floating overlay.
- * Ads, if added later, belong in [adContainer] only. Never in the overlay window.
  */
 class MainActivity : Activity() {
 
     private lateinit var prefs: Prefs
     private lateinit var scriptField: EditText
     private lateinit var loadedScript: String
-    private lateinit var permissionStatus: TextView
-    private lateinit var adContainer: FrameLayout
     private var askedForNotifications = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
         loadedScript = prefs.script
+        if (Build.VERSION.SDK_INT >= 30) window.setDecorFitsSystemWindows(false)
         setContentView(buildUi())
     }
 
     override fun onResume() {
         super.onResume()
         refreshScript()
-        refreshPermissionStatus()
     }
 
     override fun onPause() {
@@ -109,14 +111,6 @@ class MainActivity : Activity() {
         stopService(Intent(this, OverlayService::class.java))
     }
 
-    private fun refreshPermissionStatus() {
-        permissionStatus.text = if (Settings.canDrawOverlays(this)) {
-            "Display over other apps: allowed"
-        } else {
-            "Display over other apps: not allowed yet. Tap Start overlay to open the setting."
-        }
-    }
-
     // ---------- UI ----------
 
     private fun buildUi(): View {
@@ -124,43 +118,101 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Brand.bg(this@MainActivity))
         }
-        Brand.applyPageInsets(root)
-
-        val scroller = ScrollView(this)
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(PAGE_PADDING_DP), dp(PAGE_PADDING_DP), dp(PAGE_PADDING_DP), dp(PAGE_PADDING_DP))
+            isFocusableInTouchMode = true
         }
-        scroller.addView(column)
-        root.addView(scroller, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        root.addView(column, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
         column.addView(buildHeader())
-        column.addView(bodyText(
-            "Start the overlay, open your camera app, then press Play on the floating window. " +
-                "Drag the top bar to move it. Drag the bottom-right corner to resize it.",
-            muted = true
-        ).apply { setPadding(0, dp(12), 0, dp(16)) })
 
         val scriptLabel = fieldLabel("Script")
-        scriptField = EditText(this).apply {
+        scriptField = object : EditText(this) {
+            override fun onTextContextMenuItem(id: Int): Boolean {
+                if (id == android.R.id.paste || id == android.R.id.pasteAsPlainText) {
+                    val clip = getSystemService(ClipboardManager::class.java).primaryClip
+                    // Apply multi-item pastes together so a later item cannot leave a partial paste.
+                    if (clip != null && clip.itemCount > 1) {
+                        val start = minOf(selectionStart, selectionEnd).coerceAtLeast(0)
+                        val end = maxOf(selectionStart, selectionEnd).coerceAtLeast(start)
+                        val available = Limits.MAX_SCRIPT_CHARS - (length() - (end - start))
+                        val paste = SpannableStringBuilder()
+                        for (index in 0 until clip.itemCount) {
+                            val item = clip.getItemAt(index)
+                            val piece = if (id == android.R.id.paste) item.coerceToStyledText(context)
+                                else item.coerceToText(context)
+                            if (piece == null) continue
+                            val separator = if (paste.isNotEmpty()) 1 else 0
+                            if (piece.length > available - paste.length - separator) {
+                                showScriptLimit()
+                                return true
+                            }
+                            if (separator != 0) paste.append('\n')
+                            paste.append(piece)
+                        }
+                        if (paste.isNotEmpty()) text.replace(start, end, paste)
+                        return true
+                    }
+                }
+                return super.onTextContextMenuItem(id)
+            }
+        }.apply {
             id = View.generateViewId()
             // The saved script is authoritative after a share, including after process recreation.
             isSaveEnabled = false
             setText(loadedScript)
             hint = "Paste or type your script"
             gravity = Gravity.TOP or Gravity.START
-            minLines = SCRIPT_MIN_LINES
+            filters = arrayOf(InputFilter { source, start, end, dest, destStart, destEnd ->
+                if (end - start > Limits.MAX_SCRIPT_CHARS - (dest.length - (destEnd - destStart))) {
+                    showScriptLimit()
+                    dest.subSequence(destStart, destEnd)
+                } else null
+            })
             inputType = InputType.TYPE_CLASS_TEXT or
                 InputType.TYPE_TEXT_FLAG_MULTI_LINE or
                 InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
             setTextColor(Brand.text(this@MainActivity))
             setHintTextColor(Brand.muted(this@MainActivity))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+            isVerticalScrollBarEnabled = true
             background = Brand.rounded(Brand.panel(this@MainActivity), dp(FIELD_RADIUS_DP).toFloat())
             setPadding(dp(FIELD_PADDING_DP), dp(FIELD_PADDING_DP), dp(FIELD_PADDING_DP), dp(FIELD_PADDING_DP))
         }
         scriptLabel.labelFor = scriptField.id
         column.addView(scriptLabel)
-        column.addView(scriptField)
+        column.addView(scriptField, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        column.addView(bodyText("Blank lines mark rewind stops.", muted = true).apply {
+            setPadding(0, dp(8), 0, 0)
+        })
+        val start = actionButton("Start overlay", primary = true) { startOverlay() }
+        column.addView(start)
+        Brand.applyPageInsets(root) { keyboard ->
+            start.visibility = if (keyboard) View.GONE else View.VISIBLE
+        }
+        if (Build.VERSION.SDK_INT < 30) {
+            val visible = Rect()
+            root.viewTreeObserver.addOnGlobalLayoutListener {
+                root.getWindowVisibleDisplayFrame(visible)
+                val keyboard = root.rootView.height - visible.height() > dp(100)
+                start.visibility = if (keyboard) View.GONE else View.VISIBLE
+            }
+        }
+        column.requestFocus()
+        return root
+    }
+
+    private fun showScriptLimit() {
+        Toast.makeText(this, "Script limit: 200,000 characters. Shorten the text and try again.", Toast.LENGTH_LONG).show()
+    }
+
+    private fun showOverlaySettings() {
+        getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(scriptField.windowToken, 0)
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(PAGE_PADDING_DP), 0, dp(PAGE_PADDING_DP), dp(PAGE_PADDING_DP))
+        }
 
         spinnerRow(column, "Font", Options.fonts.map { it.label }, prefs.fontIndex) { prefs.fontIndex = it }
         spinnerRow(column, "Text color", Options.colors.map { it.label }, prefs.colorIndex) { prefs.colorIndex = it }
@@ -190,10 +242,11 @@ class MainActivity : Activity() {
             topMargin = dp(12)
         })
 
-        permissionStatus = bodyText("", muted = true).apply { setPadding(0, dp(16), 0, dp(8)) }
-        column.addView(permissionStatus)
-
-        column.addView(actionButton("Start overlay", primary = true) { startOverlay() })
+        column.addView(bodyText(
+            if (Settings.canDrawOverlays(this)) "Display over other apps: allowed"
+            else "Tap Start overlay from the editor to allow display over other apps.",
+            muted = true
+        ).apply { setPadding(0, dp(16), 0, dp(8)) })
         column.addView(actionButton("Stop overlay", primary = false) { stopOverlay() })
         column.addView(bodyText(
             "Changes made here apply the next time you start the overlay. " +
@@ -201,11 +254,11 @@ class MainActivity : Activity() {
             muted = true
         ).apply { setPadding(0, dp(12), 0, 0) })
 
-        // Future ad banner goes in this container. Hidden until an ad SDK is added.
-        adContainer = FrameLayout(this).apply { visibility = View.GONE }
-        root.addView(adContainer, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-
-        return root
+        AlertDialog.Builder(this)
+            .setTitle("Overlay settings")
+            .setView(ScrollView(this).apply { addView(column) })
+            .setPositiveButton("Done", null)
+            .show()
     }
 
     private fun buildHeader(): View {
@@ -242,7 +295,9 @@ class MainActivity : Activity() {
             setTextColor(Brand.accent(this@MainActivity))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, SUBTITLE_SP)
         })
-        row.addView(titles)
+        row.addView(titles, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        row.addView(actionButton("Settings", primary = false) { showOverlaySettings() },
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         return row
     }
 
@@ -328,13 +383,12 @@ class MainActivity : Activity() {
     private companion object {
         const val REQUEST_NOTIFICATIONS = 1
         const val PAGE_PADDING_DP = 16
-        const val SCRIPT_MIN_LINES = 8
         const val FIELD_PADDING_DP = 12
         const val FIELD_RADIUS_DP = 10
         const val BUTTON_RADIUS_DP = 10
         const val FOCUS_RING_DP = 2
         const val MIN_TOUCH_DP = 48
-        const val LOGO_SIZE_DP = 64
+        const val LOGO_SIZE_DP = 40
         const val LOGO_RADIUS_DP = 16
         const val TITLE_SP = 26f
         const val SUBTITLE_SP = 14f

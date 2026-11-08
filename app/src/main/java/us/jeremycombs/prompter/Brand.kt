@@ -31,11 +31,13 @@ object Brand {
     fun onAccent(ctx: Context): Int = ctx.getColor(R.color.brand_on_accent)
 
     @Suppress("DEPRECATION")
-    fun applyPageInsets(view: View) {
+    fun applyPageInsets(view: View, onKeyboard: ((Boolean) -> Unit)? = null) {
         view.setOnApplyWindowInsetsListener { page, insets ->
             if (Build.VERSION.SDK_INT >= 30) {
-                val bars = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+                val system = WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout()
+                val bars = insets.getInsets(if (onKeyboard == null) system else system or WindowInsets.Type.ime())
                 page.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+                onKeyboard?.invoke(insets.isVisible(WindowInsets.Type.ime()))
             } else {
                 page.setPadding(
                     insets.systemWindowInsetLeft, insets.systemWindowInsetTop,
