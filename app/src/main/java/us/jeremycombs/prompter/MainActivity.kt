@@ -116,7 +116,7 @@ class MainActivity : Activity() {
     private fun buildUi(): View {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Brand.bg(this@MainActivity))
+            setBackgroundColor(getColor(R.color.editor_background))
         }
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -176,8 +176,12 @@ class MainActivity : Activity() {
             setTextColor(Brand.text(this@MainActivity))
             setHintTextColor(Brand.muted(this@MainActivity))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+            setLineSpacing(0f, 1.18f)
             isVerticalScrollBarEnabled = true
-            background = Brand.rounded(Brand.panel(this@MainActivity), dp(FIELD_RADIUS_DP).toFloat())
+            background = Brand.rounded(
+                getColor(R.color.editor_surface), dp(FIELD_RADIUS_DP).toFloat(),
+                getColor(R.color.brand_outline), dp(1)
+            )
             setPadding(dp(FIELD_PADDING_DP), dp(FIELD_PADDING_DP), dp(FIELD_PADDING_DP), dp(FIELD_PADDING_DP))
         }
         scriptLabel.labelFor = scriptField.id
@@ -280,22 +284,14 @@ class MainActivity : Activity() {
         }
         row.addView(logo, LinearLayout.LayoutParams(dp(LOGO_SIZE_DP), dp(LOGO_SIZE_DP)))
 
-        val titles = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), 0, 0, 0)
-        }
-        titles.addView(TextView(this).apply {
+        val title = TextView(this).apply {
             text = "Prompter"
+            setPadding(dp(12), 0, dp(8), 0)
             setTextColor(Brand.text(this@MainActivity))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, TITLE_SP)
             setTypeface(typeface, android.graphics.Typeface.BOLD)
-        })
-        titles.addView(TextView(this).apply {
-            text = "Floating teleprompter"
-            setTextColor(Brand.accent(this@MainActivity))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, SUBTITLE_SP)
-        })
-        row.addView(titles, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        }
+        row.addView(title, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         row.addView(actionButton("Settings", primary = false) { showOverlaySettings() },
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         return row
@@ -317,7 +313,7 @@ class MainActivity : Activity() {
         Button(this).apply {
             text = label
             minHeight = dp(MIN_TOUCH_DP)
-            Brand.styleButton(this@MainActivity, this, primary, dp(BUTTON_RADIUS_DP).toFloat(), dp(FOCUS_RING_DP))
+            Brand.styleButton(this@MainActivity, this, primary)
             setOnClickListener { onClick() }
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                 .apply { topMargin = dp(8) }
@@ -384,13 +380,10 @@ class MainActivity : Activity() {
         const val REQUEST_NOTIFICATIONS = 1
         const val PAGE_PADDING_DP = 16
         const val FIELD_PADDING_DP = 12
-        const val FIELD_RADIUS_DP = 10
-        const val BUTTON_RADIUS_DP = 10
-        const val FOCUS_RING_DP = 2
+        const val FIELD_RADIUS_DP = 13
         const val MIN_TOUCH_DP = 48
-        const val LOGO_SIZE_DP = 40
-        const val LOGO_RADIUS_DP = 16
-        const val TITLE_SP = 26f
-        const val SUBTITLE_SP = 14f
+        const val LOGO_SIZE_DP = 32
+        const val LOGO_RADIUS_DP = 8
+        const val TITLE_SP = 23f
     }
 }

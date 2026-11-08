@@ -2,9 +2,12 @@
 <resources>
     <!-- Brand palette. Matches the launcher icon. Single source of truth for the app and overlay. -->
     <color name="brand_bg">#0B0B0C</color>
-    <color name="brand_panel">#2A2A31</color>
-    <color name="brand_text">#F5F5F5</color>
-    <color name="brand_muted">#B4B4BB</color>
+    <color name="brand_panel">#22242A</color>
+    <color name="brand_text">#F5F4EF</color>
+    <color name="brand_muted">#B2B4BD</color>
+    <color name="brand_outline">#393C45</color>
+    <color name="editor_background">#101113</color>
+    <color name="editor_surface">#1C1E23</color>
     <color name="brand_accent">#FFD54A</color>
     <color name="brand_on_accent">#0B0B0C</color>
 </resources>

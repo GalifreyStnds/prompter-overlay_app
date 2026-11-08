@@ -345,7 +345,7 @@ class OverlayService : Service() {
             minWidth = 0
             minimumWidth = 0
             setPadding(0, 0, 0, 0)
-            Brand.styleButton(this@OverlayService, this, primary, dp(BUTTON_RADIUS_DP).toFloat(), dp(FOCUS_RING_DP))
+            Brand.styleButton(this@OverlayService, this, primary)
             setOnClickListener { onClick() }
         }
 
@@ -560,8 +560,6 @@ class OverlayService : Service() {
         const val MARKER_POSITION_RATIO = 0.3f
         const val LINE_SPACING = 1.25f
 
-        const val BUTTON_RADIUS_DP = 6
-        const val FOCUS_RING_DP = 2
         const val CONTROL_MARGIN_DP = 1
         const val MARKER_ALPHA = 0xCC
         const val HANDLE_ALPHA = 0xAA
