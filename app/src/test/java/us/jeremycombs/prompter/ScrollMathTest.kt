@@ -54,4 +54,23 @@ class ScrollMathTest {
     fun clampToleratesInvertedBounds() {
         assertEquals(10, ScrollMath.clamp(5, 10, 3))
     }
+
+    @Test
+    fun rewindUsesBlankLinesAndStepsBackFromAnExactStop() {
+        val script = "First\nStill first\n \t\nSecond\nStill second\n\nThird"
+        val second = script.indexOf("Second")
+        val third = script.indexOf("Third")
+        assertEquals(second, ScrollMath.rewindTarget(script, third) { it })
+        assertEquals(second, ScrollMath.rewindTarget(script, second + 3) { it })
+        assertEquals(0, ScrollMath.rewindTarget(script, second) { it })
+    }
+
+    @Test
+    fun rewindIgnoresLeadingAndTrailingBlankLinesAndHandlesCrLf() {
+        val script = "\r\nFirst\r\n \r\nSecond\r\n\r\n"
+        val second = script.indexOf("Second")
+        assertEquals(second, ScrollMath.rewindTarget(script, script.length) { it })
+        assertEquals(0, ScrollMath.rewindTarget(script, 0) { it })
+        assertEquals(0, ScrollMath.rewindTarget("Only one\nwrapped paragraph", 20) { it })
+    }
 }

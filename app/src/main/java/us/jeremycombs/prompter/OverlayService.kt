@@ -95,7 +95,7 @@ class OverlayService : Service() {
             if (!script.contentEquals(body.text)) {
                 pausePlayback()
                 body.text = script
-                jumpToTop()
+                jumpTo()
                 // Cancel any fling that was still scrolling the previous script.
                 scroll.fling(0)
             }
@@ -252,11 +252,19 @@ class OverlayService : Service() {
         val moreControls = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
         playButton = controlButton(ctx, "Play", "Play scrolling", primary = true) { togglePlay() }
         controls.addView(playButton, controlParams(PLAY_WIDTH_DP))
-        controls.addView(controlButton(ctx, "Top", "Jump back to the start of the script") { jumpToTop() }, controlParams())
+        controls.addView(controlButton(ctx, "↶", "Rewind paragraph") {
+            speedControls.visibility = View.GONE
+            moreControls.visibility = View.GONE
+            rewindParagraph()
+        }, controlParams())
         controls.addView(controlButton(ctx, "Speed", "Scroll speed controls") { toggleMenu(speedControls, moreControls) }, controlParams())
-        controls.addView(controlButton(ctx, "More", "Text size and close controls") { toggleMenu(moreControls, speedControls) }, controlParams())
+        controls.addView(controlButton(ctx, "More", "Top, text size and close controls") { toggleMenu(moreControls, speedControls) }, controlParams())
         speedControls.addView(controlButton(ctx, "Slower", "Scroll slower") { changeSpeed(-Limits.SPEED_STEP) }, controlParams())
         speedControls.addView(controlButton(ctx, "Faster", "Scroll faster") { changeSpeed(Limits.SPEED_STEP) }, controlParams())
+        moreControls.addView(controlButton(ctx, "Top", "Jump back to the start of the script") {
+            moreControls.visibility = View.GONE
+            jumpTo()
+        }, controlParams())
         moreControls.addView(controlButton(ctx, "A-", "Smaller text") { changeSize(-Limits.SIZE_STEP) }, controlParams())
         moreControls.addView(controlButton(ctx, "A+", "Larger text") { changeSize(Limits.SIZE_STEP) }, controlParams())
         moreControls.addView(controlButton(ctx, "Close", "Close the prompter") { stopSelf() }, controlParams())
@@ -435,10 +443,23 @@ class OverlayService : Service() {
         body.setTextSize(TypedValue.COMPLEX_UNIT_SP, prefs.textSizeSp.toFloat())
     }
 
-    private fun jumpToTop() {
-        scroll.scrollTo(0, 0)
-        position = 0f
-        lastSetY = 0
+    private fun rewindParagraph() {
+        pausePlayback()
+        val layout = body.layout ?: return
+        val markerY = (scroll.height * MARKER_POSITION_RATIO).roundToInt()
+        val target = ScrollMath.rewindTarget(layout.text, scroll.scrollY) { offset ->
+            val line = layout.getLineForOffset(offset)
+            (layout.getLineTop(line) + body.totalPaddingTop - markerY).coerceAtLeast(0)
+        }
+        jumpTo(target)
+        // Reset any manual fling at the new reading position.
+        scroll.fling(0)
+    }
+
+    private fun jumpTo(y: Int = 0) {
+        scroll.scrollTo(0, y)
+        lastSetY = scroll.scrollY
+        position = lastSetY.toFloat()
     }
 
     // ---------- playback ----------
