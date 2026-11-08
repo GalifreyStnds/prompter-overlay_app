@@ -20,6 +20,25 @@ object ScrollMath {
     /** True when there is nothing left to scroll. */
     fun atEnd(position: Float, max: Float): Boolean = max <= 0f || position >= max
 
+    /** The closest paragraph stop strictly above the current scroll position. */
+    fun rewindTarget(text: CharSequence, currentY: Int, paragraphY: (Int) -> Int): Int {
+        var lineStart = 0
+        var afterBlank = true
+        var target = 0
+        while (lineStart < text.length) {
+            val lineEnd = text.indexOf('\n', lineStart).let { if (it < 0) text.length else it }
+            val blank = (lineStart until lineEnd).all { text[it].isWhitespace() }
+            if (afterBlank && !blank) {
+                val stop = paragraphY(lineStart)
+                if (stop >= currentY) break
+                target = stop
+            }
+            afterBlank = blank
+            lineStart = lineEnd + 1
+        }
+        return target
+    }
+
     /** Like coerceIn, but tolerates inverted bounds by favoring [min]. */
     fun clamp(value: Int, min: Int, max: Int): Int = value.coerceIn(min, maxOf(min, max))
 }

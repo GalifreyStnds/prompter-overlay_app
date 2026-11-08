@@ -13,7 +13,8 @@ I built it for my own use and I use it on my phone.
 - Script editor with one saved script
 - Share plain text to Prompter to preview it before replacing the saved script
 - Floating window you drag by the top bar and resize from the bottom-right corner
-- Play and Top stay visible. Speed opens Slower and Faster, and More opens text size and Close.
+- Play and paragraph rewind stay visible. Rewind pauses at the start of the current paragraph, and another tap goes to the previous one. Separate paragraphs with a blank line.
+- Speed opens Slower and Faster. More opens Top, text size and Close.
 - Touch-scroll by hand at any time. Playback resumes from where you leave it.
 - Settings for font, text color, text size, scroll speed, window opacity, countdown, and mirrored text
 - Screen stays on while the window is showing
