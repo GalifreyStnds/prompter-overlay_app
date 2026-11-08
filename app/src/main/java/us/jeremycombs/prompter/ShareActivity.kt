@@ -113,7 +113,7 @@ class ShareActivity : Activity() {
     private fun action(title: String, primary: Boolean = false, onClick: () -> Unit) = Button(this).apply {
         text = title
         minHeight = dp(48)
-        Brand.styleButton(this@ShareActivity, this, primary, dp(10).toFloat(), dp(2))
+        Brand.styleButton(this@ShareActivity, this, primary)
         layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             .apply { topMargin = dp(8) }
         setOnClickListener { onClick() }

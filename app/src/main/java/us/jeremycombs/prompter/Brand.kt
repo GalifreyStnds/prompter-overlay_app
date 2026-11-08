@@ -13,6 +13,7 @@ import android.view.View
 import android.view.WindowInsets
 import android.widget.Button
 import android.widget.SeekBar
+import kotlin.math.roundToInt
 
 /**
  * Shared look for the settings screen and the floating overlay.
@@ -22,6 +23,8 @@ import android.widget.SeekBar
 object Brand {
     private const val RIPPLE_ALPHA = 0x33
     private const val BUTTON_TEXT_SP = 14f
+    private const val BUTTON_RADIUS_DP = 9
+    private const val FOCUS_RING_DP = 2
 
     fun bg(ctx: Context): Int = ctx.getColor(R.color.brand_bg)
     fun panel(ctx: Context): Int = ctx.getColor(R.color.brand_panel)
@@ -62,20 +65,25 @@ object Brand {
      * Rounded button background with a press ripple and a visible focus ring for keyboard
      * and switch-access users.
      */
-    fun buttonBackground(ctx: Context, fill: Int, radiusPx: Float, focusRingPx: Int): Drawable {
+    private fun buttonBackground(ctx: Context, fill: Int, ink: Int, primary: Boolean): Drawable {
+        val density = ctx.resources.displayMetrics.density
+        val radius = BUTTON_RADIUS_DP * density
+        val focusRing = (FOCUS_RING_DP * density).roundToInt()
+        val outline = ctx.getColor(R.color.brand_outline)
         val states = StateListDrawable().apply {
-            addState(intArrayOf(android.R.attr.state_focused), rounded(fill, radiusPx, text(ctx), focusRingPx))
-            addState(intArrayOf(), rounded(fill, radiusPx))
+            addState(intArrayOf(android.R.attr.state_focused), rounded(fill, radius, ink, focusRing))
+            addState(intArrayOf(), rounded(fill, radius, outline, if (primary) 0 else density.roundToInt()))
         }
-        val ripple = ColorStateList.valueOf(withAlpha(text(ctx), RIPPLE_ALPHA))
-        return RippleDrawable(ripple, states, rounded(Color.WHITE, radiusPx))
+        val ripple = ColorStateList.valueOf(withAlpha(ink, RIPPLE_ALPHA))
+        return RippleDrawable(ripple, states, rounded(Color.WHITE, radius))
     }
 
     /** Primary buttons are yellow with dark text. Others are charcoal with light text. */
-    fun styleButton(ctx: Context, button: Button, primary: Boolean, radiusPx: Float, focusRingPx: Int) {
+    fun styleButton(ctx: Context, button: Button, primary: Boolean) {
         val fill = if (primary) accent(ctx) else panel(ctx)
-        button.background = buttonBackground(ctx, fill, radiusPx, focusRingPx)
-        button.setTextColor(if (primary) onAccent(ctx) else text(ctx))
+        val ink = if (primary) onAccent(ctx) else text(ctx)
+        button.background = buttonBackground(ctx, fill, ink, primary)
+        button.setTextColor(ink)
         button.setTextSize(TypedValue.COMPLEX_UNIT_SP, BUTTON_TEXT_SP)
         button.isAllCaps = false
         button.stateListAnimator = null
